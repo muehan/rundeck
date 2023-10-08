@@ -15,16 +15,14 @@ class DefaultRemoteJsonOptionRetriever implements RemoteJsonOptionRetriever {
     @Override
     RemoteJsonResponse getRemoteJson(String url, int timeout, int contimeout, int retry=5, boolean disableRemoteOptionJsonCheck=false) {
         log.debug("getRemoteJSON: "+url+", timeout: "+timeout+", retry: "+retry)
+        String cleanUrl = url.replaceAll("^(https?://)([^:@/]+):[^@/]*@", '$1$2:****@');
         //attempt to get the URL JSON data
         def rjresponse = new RemoteJsonResponse()
-        if(url.startsWith("http:") || url.startsWith("https:")){
+        if(cleanUrl.startsWith("http:") || cleanUrl.startsWith("https:")){
             HttpClient<HttpResponse> client = new ApacheHttpClient()
             client.setFollowRedirects(true)
             client.setTimeout(timeout*1000)
-
-
             URL urlo
-            String cleanUrl = url.replaceAll("^(https?://)([^:@/]+):[^@/]*@", '$1$2:****@');
             try{
                 urlo = new URL(url)
                 if(urlo.userInfo){
