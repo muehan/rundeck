@@ -223,9 +223,7 @@ function Option(data) {
                         }));
                     }
                 });
-                var multiselected=self.selectedMultiValues();
                 self.multiValueList(temp);
-                addExtraSelected(multiselected);
             });
         } else {
             addExtraSelected(self.selectedMultiValues());
