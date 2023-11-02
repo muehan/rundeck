@@ -198,16 +198,15 @@ function Option(data) {
                 var new_values = [];
 
                 ko.utils.arrayForEach(newval, function (val) {
-
                     new_values.push(self.createMultivalueEntry({
                         label: val.label(),
                         value: val.value(),
-                        selected: selected || (!hasselected && val.selected()),
+                        selected: testselected(val.value()) || val.selected(),
                         editable: false,
                         multival: true
                     }));
                 });
-                self.multiValueList(temp);
+                self.multiValueList(new_values);
             });
         } else {
             addExtraSelected(self.selectedMultiValues());
