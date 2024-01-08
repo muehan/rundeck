@@ -104,6 +104,7 @@
                       :entries="viewerEntries"
                       :jump-to-line="jumpToLine"
                       :jumped="jumped"
+                      :follow="mfollow"
                       @line-select="handleLineSelect"
                       @jumped="jumped = true"
         />
@@ -556,10 +557,6 @@ export default defineComponent({
 
 .execution-log--no-transition * {
   transition: none !important;
-}
-
-.execution-log__node-chunk * {
-  transition: all 0.3s ease;
 }
 
 .execution-log__node-chunk {

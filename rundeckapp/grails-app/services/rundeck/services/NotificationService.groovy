@@ -22,6 +22,7 @@ import com.dtolabs.rundeck.core.dispatcher.ContextView
 import com.dtolabs.rundeck.core.dispatcher.DataContextUtils
 import com.dtolabs.rundeck.core.execution.ExecutionContextImpl
 import com.dtolabs.rundeck.core.execution.workflow.WorkflowStrategy
+import com.dtolabs.rundeck.core.execution.workflow.steps.CustomFieldsAdapter
 import com.dtolabs.rundeck.core.http.ApacheHttpClient
 import com.dtolabs.rundeck.core.http.HttpClient
 import com.dtolabs.rundeck.core.logging.LogEvent
@@ -313,14 +314,18 @@ public class NotificationService implements ApplicationContextAware{
                             (ExecutionService.EXECUTION_SUCCEEDED):'SUCCESS',
                             (ExecutionService.EXECUTION_TIMEDOUT):'TIMEDOUT',
                             (ExecutionService.EXECUTION_MISSED):'MISSED',
-                            (ExecutionService.EXECUTION_FAILED_WITH_RETRY):'FAILED WITH RETRY',
-                            (ExecutionService.AVERAGE_DURATION_EXCEEDED):'AVERAGE DURATION EXCEEDED',
+                            (ExecutionService.EXECUTION_FAILED_WITH_RETRY):'FAILED WITH RETRY'
                     ]
+
+                    String eventStatus = statMsg[state]
+                    if(trigger=='avgduration'){
+                        eventStatus='AVERAGE DURATION EXCEEDED'
+                    }
 
                     def execMap = null
                     Map context = null
                     (context, execMap) = generateNotificationContext(content.execution, content, source)
-                    context = DataContextUtils.addContext("notification", [trigger: trigger, eventStatus: statMsg[state]], context)
+                    context = DataContextUtils.addContext("notification", [trigger: trigger, eventStatus: eventStatus], context)
 
                     def destarr=[]
                     def destrecipients=mailConfig.recipients
@@ -574,18 +579,8 @@ public class NotificationService implements ApplicationContextAware{
                     Map context = null
                     (context, execMap) = generateNotificationContext(content.execution, content, source)
 
-                    Map config= n.configuration
-                    if (context && config) {
-                        config = DataContextUtils.replaceDataReferences(config, context)
-                    }
 
-                    config = config?.each {
-                        if(!it.value){
-                            it.value=null
-                        }
-                    }
-
-                    didsend=triggerPlugin(trigger,execMap,n.type, source.project,config, content)
+                    didsend=triggerPlugin(trigger,execMap,n.type, source.project,n.configuration, content,context)
                 }else{
                     log.error("Unsupported notification type: " + n.type);
                 }
@@ -779,8 +774,28 @@ public class NotificationService implements ApplicationContextAware{
      * @param type plugin type
      * @param config user configuration
      */
-    private boolean triggerPlugin(String trigger, Map data,String type, String project, Map config, Map content){
+    private boolean triggerPlugin(String trigger, Map data,String type, String project, Map config, Map content, Map context){
+        if (context && config) {
+            DescribedPlugin described = pluginService.getPluginDescriptor(type, notificationPluginProviderService)
+            if(described?.description) {
+                CustomFieldsAdapter customFieldsAdapter = CustomFieldsAdapter.create(described.description)
+                config = DataContextUtils.replaceDataReferences(
+                        config,
+                        context,
+                        null,
+                        false,
+                        false,
+                        customFieldsAdapter.&convertInput,
+                        customFieldsAdapter.&convertOutput
+                )
+            }
+        }
 
+        config = config?.each {
+            if(!it.value){
+                it.value=null
+            }
+        }
         Map<Class, Object> servicesMap = [:]
         servicesMap.put(KeyStorageTree, content.context.storageTree)
 
@@ -987,7 +1002,7 @@ public class NotificationService implements ApplicationContextAware{
                     }
                     contextBuilder.authContext(evt.authContext)
                     triggerJobNotification(
-                            "failure", job,
+                            evt.trigger, job,
                             [execution: Execution.findByUuid(evt.executionUuid),
                              context  : contextBuilder.build()]
                     )
